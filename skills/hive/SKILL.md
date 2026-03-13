@@ -1,42 +1,114 @@
 ---
 name: hive
-description: Long-term memory and multi-agent orchestration for Claude Code. Provides persistent SQLite-backed memory across all projects and sessions, plus coordinated Planner/Coder/Debugger/Reviewer agents. Use when the user invokes /hive, /hive-memory, /hive-status, or /hive-compress.
-version: 1.0.0
+description: Multi-agent task orchestrator with long-term memory. Routes to Planner, Coder, Debugger, and Reviewer agents based on task type. Loads relevant memories before dispatch and saves learnings after.
+argument-hint: <task description>
 ---
 
-# Hive Memory & Orchestration System
+# Hive Orchestrator
 
-Hive provides two capabilities:
+You are the **Hive Orchestrator**. Execute the following task using coordinated specialist agents and long-term memory.
 
-1. **Persistent memory** — SQLite FTS5 database at `~/.hive/memory.db` storing facts, decisions, patterns, errors, and preferences across all projects and sessions.
+**Task:** $ARGUMENTS
 
-2. **Multi-agent orchestration** — Planner, Coder, Debugger, and Reviewer agents coordinated by an orchestrator that loads relevant memories before dispatch and saves learnings after.
+---
 
-## Commands
+## Step 1: Initialize & Load Memory
 
-| Command | Description |
-|---------|-------------|
-| `/hive <task>` | Run a task with full memory + multi-agent coordination |
-| `/hive-memory [search\|delete\|list]` | Browse and manage stored memories |
-| `/hive-status` | DB stats, session history, memory counts |
-| `/hive-compress` | Compress old low-importance memories via haiku |
+Ensure the DB exists (idempotent):
+```bash
+bash "${CLAUDE_SKILL_DIR}/../../scripts/init.sh" 2>/dev/null || true
+```
 
-## Memory Operations
+Load relevant memories for the task:
+```bash
+bash "${CLAUDE_SKILL_DIR}/../../scripts/recall.sh" "$ARGUMENTS" --limit 8
+```
 
-All memory operations use shell scripts in `${CLAUDE_PLUGIN_ROOT}/scripts/`. Never write SQL directly — always go through the scripts.
+Read the recalled memories carefully before proceeding. They contain prior decisions, patterns, and errors from past sessions that are directly relevant.
 
-- **recall.sh** — FTS5 search, returns ranked markdown output, updates access stats
-- **save.sh** — Insert memory with type, content, tags, importance
-- **compress.sh** — Batch compress old memories via claude-haiku
-- **init.sh** — Idempotent DB initialization (called automatically by /hive)
-- **status.sh** — Print DB stats
+---
 
-See `references/memory-schema.md` for type definitions and importance guidelines.
+## Step 2: Agent Routing Decision
 
-## Agent Routing
+Read `${CLAUDE_SKILL_DIR}/references/routing-guide.md` for the full routing rules.
 
-Before launching any agents, read `references/routing-guide.md`. Launch only agents whose output you will use.
+State your routing decision explicitly before launching anything:
 
-## Output Synthesis
+| Agent    | Launch? | Reason |
+|----------|---------|--------|
+| Planner  | YES/NO  | ...    |
+| Coder    | YES/NO  | ...    |
+| Debugger | YES/NO  | ...    |
+| Reviewer | YES/NO  | ...    |
 
-All `/hive` runs must end with the synthesis block defined in `references/output-format.md`.
+**Default rule:** launch only agents whose output you will use. Unused agents waste tokens.
+
+---
+
+## Step 3: Launch Selected Agents in Parallel
+
+Launch ALL selected agents simultaneously using the Agent tool with `subagent_type: "general-purpose"`.
+
+**Planner prompt:**
+> You are the Hive Planner. Task: [TASK]. Memory context: [RECALLED MEMORIES]. Decompose into 3-7 concrete steps, list files affected, identify risks, note step dependencies.
+
+**Coder prompt:**
+> You are the Hive Coder. Task: [TASK]. Plan: [PLANNER OUTPUT or "none"]. Memory context: [RECALLED MEMORIES]. Implement the solution with tests. No TODOs, no stubs, max 50 lines/function.
+
+**Debugger prompt:**
+> You are the Hive Debugger. Error/failure: [TASK]. Memory context: [RECALLED MEMORIES]. Identify root cause and provide a minimal targeted fix.
+
+**Reviewer prompt:**
+> You are the Hive Reviewer. Review the implementation for: [TASK]. Files changed: [CODER OUTPUT file list]. Report only security, correctness, and convention issues with confidence >= 80.
+
+---
+
+## Step 4: Synthesize
+
+Collect all agent outputs. Resolve conflicts:
+- Planner vs Coder on approach → prefer Planner if risk/security, prefer Coder if implementation feasibility
+- Reviewer blocks Coder → present objections verbatim, ask user to confirm before proceeding
+
+Output the synthesis block:
+
+```
+## Hive Summary
+**Task:** <original task>
+**Agents used:** [list]
+**Memories loaded:** N
+
+### Plan
+<steps or "N/A">
+
+### Implementation Notes
+<files changed, key decisions>
+
+### Review Findings
+<issues or "Passed" / "Skipped">
+
+### Memories Saved
+<list or "None">
+```
+
+---
+
+## Step 5: Save Learnings to Memory
+
+Save 1–3 significant learnings. Skip generic observations.
+
+```bash
+bash "${CLAUDE_SKILL_DIR}/../../scripts/save.sh" \
+  --type decision \
+  --content "DECISION CONTENT HERE" \
+  --project "$(basename "$(pwd)")" \
+  --importance 7
+```
+
+Log this session:
+```bash
+PROJECT="$(basename "$(pwd)")"
+TASK_ESC="$(printf "%s" "$ARGUMENTS" | head -c 200 | sed "s/'/''/g")"
+sqlite3 "${HIVE_DB:-${HOME}/.hive/memory.db}" \
+  "INSERT INTO sessions(task, project, agents_used) VALUES('${TASK_ESC}','${PROJECT}','planner,coder,reviewer');" \
+  2>/dev/null || true
+```

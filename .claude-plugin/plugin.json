@@ -1,29 +1,7 @@
 {
   "name": "hive",
-  "version": "1.0.0",
   "description": "Long-term memory and multi-agent orchestration for Claude Code",
   "author": {
-    "name": "Avinash Chaubey",
-    "url": "https://github.com/avinashchaubey/hive"
-  },
-  "homepage": "https://github.com/avinashchaubey/hive",
-  "repository": "https://github.com/avinashchaubey/hive",
-  "license": "MIT",
-  "keywords": ["memory", "multi-agent", "orchestration", "sqlite", "productivity"],
-  "commands": [
-    { "name": "hive",          "file": "commands/hive.md" },
-    { "name": "hive-memory",   "file": "commands/hive-memory.md" },
-    { "name": "hive-status",   "file": "commands/hive-status.md" },
-    { "name": "hive-compress", "file": "commands/hive-compress.md" }
-  ],
-  "agents": [
-    { "name": "hive-planner",  "file": "agents/hive-planner.md" },
-    { "name": "hive-coder",    "file": "agents/hive-coder.md" },
-    { "name": "hive-debugger", "file": "agents/hive-debugger.md" },
-    { "name": "hive-reviewer", "file": "agents/hive-reviewer.md" }
-  ],
-  "scripts_dir": "scripts",
-  "requires": {
-    "sqlite3": ">=3.0.0"
+    "name": "Avinash Chaubey"
   }
 }
