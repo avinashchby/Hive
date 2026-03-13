@@ -31,17 +31,7 @@ bash install.sh
 
 `install.sh` copies Hive to `~/.claude/hive/` and initializes the SQLite database.
 
-Then launch Claude Code with the plugin directory flag:
-
-```bash
-claude --plugin-dir ~/.claude/hive
-```
-
-**Recommended:** add an alias to your `~/.zshrc` or `~/.bashrc` so you never need to think about it:
-
-```bash
-alias claude='claude --plugin-dir ~/.claude/hive'
-```
+Then restart Claude Code. The `/hive` commands will be available automatically — no flags needed.
 
 **Requirements:** macOS (sqlite3 built-in) or Linux with `sqlite3` + FTS5.
 
