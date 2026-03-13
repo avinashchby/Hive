@@ -24,8 +24,8 @@ Hive is a Claude Code plugin that gives Claude two superpowers it doesn't have b
 ## Install
 
 ```bash
-git clone https://github.com/avinashchaubey/hive
-cd hive
+git clone https://github.com/avinashcheby/Hive-Claude-Code-Skill
+cd Hive-Claude-Code-Skill
 bash install.sh
 ```
 
