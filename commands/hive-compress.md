@@ -31,7 +31,7 @@ Ask the user: "Proceed with compression? This will permanently merge the above m
 If the user confirms, run:
 
 ```bash
-bash "${CLAUDE_PLUGIN_ROOT}/scripts/compress.sh"
+bash "${HIVE_HOME:-${HOME}/.hive}/scripts/compress.sh"
 ```
 
 Report the result. Then show updated memory count:

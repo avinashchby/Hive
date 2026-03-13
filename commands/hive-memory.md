@@ -10,7 +10,7 @@ allowed-tools: Bash
 
 Ensure DB exists before proceeding:
 ```bash
-bash "${CLAUDE_PLUGIN_ROOT}/scripts/init.sh" 2>/dev/null || true
+bash "${HIVE_HOME:-${HOME}/.hive}/scripts/init.sh" 2>/dev/null || true
 ```
 
 ---
@@ -23,7 +23,7 @@ Parse `$ARGUMENTS` and take the appropriate action:
 
 Run recall and present formatted results:
 ```bash
-bash "${CLAUDE_PLUGIN_ROOT}/scripts/recall.sh" "${ARGUMENTS#search }" --limit 20
+bash "${HIVE_HOME:-${HOME}/.hive}/scripts/recall.sh" "${ARGUMENTS#search }" --limit 20
 ```
 
 After showing results, offer:

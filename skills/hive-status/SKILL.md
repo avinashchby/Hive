@@ -6,7 +6,7 @@ description: Show Hive DB stats, memory counts by type, recent sessions, and com
 # Hive Status
 
 ```bash
-bash "${CLAUDE_SKILL_DIR}/../../scripts/status.sh"
+bash "${HIVE_HOME:-${HOME}/.hive}/scripts/status.sh"
 ```
 
 Present the output as a formatted report. Add health observations:

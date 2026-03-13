@@ -1,16 +1,13 @@
 #!/usr/bin/env bash
-# install.sh — Install Hive by registering it in Claude Code's plugin system.
-# This copies Hive to the plugins cache and registers it in installed_plugins.json
-# so /hive, /hive-memory, /hive-status, /hive-compress appear automatically.
+# install.sh — Install Hive into ~/.hive/ and symlink skills into ~/.claude/skills/.
+# Claude Code auto-discovers skills in ~/.claude/skills/<name>/SKILL.md.
 # Usage: bash install.sh
 set -euo pipefail
 IFS=$'\n\t'
 
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PLUGIN_NAME="hive"
-PLUGIN_VERSION="1.0.0"
-CACHE_DIR="${HOME}/.claude/plugins/cache/local/${PLUGIN_NAME}/${PLUGIN_VERSION}"
-REGISTRY="${HOME}/.claude/plugins/installed_plugins.json"
+HIVE_HOME="${HIVE_HOME:-${HOME}/.hive}"
+CLAUDE_SKILLS_DIR="${HOME}/.claude/skills"
 
 check_deps() {
     if ! command -v sqlite3 &>/dev/null; then
@@ -24,67 +21,92 @@ check_deps() {
         echo "ERROR: sqlite3 does not have FTS5 support compiled in." >&2
         exit 1
     fi
-
-    if ! command -v python3 &>/dev/null; then
-        echo "ERROR: python3 is required for JSON registry update." >&2
-        exit 1
-    fi
 }
 
-install_files() {
-    echo "Installing Hive to ${CACHE_DIR}..."
-    rm -rf "${CACHE_DIR}"
-    mkdir -p "${CACHE_DIR}"
-    cp -r "${REPO_DIR}/." "${CACHE_DIR}/"
-    chmod +x "${CACHE_DIR}/scripts/"*.sh
-    chmod +x "${CACHE_DIR}/scripts/lib/"*.sh
-    chmod +x "${CACHE_DIR}/tests/"*.sh
-    chmod +x "${CACHE_DIR}/install.sh"
-    echo "Files installed."
+install_scripts() {
+    echo "Installing scripts to ${HIVE_HOME}/scripts/..."
+    mkdir -p "${HIVE_HOME}/scripts/lib"
+
+    cp "${REPO_DIR}/scripts/"*.sh "${HIVE_HOME}/scripts/"
+    cp "${REPO_DIR}/scripts/lib/"*.sh "${HIVE_HOME}/scripts/lib/"
+    chmod +x "${HIVE_HOME}/scripts/"*.sh
+    chmod +x "${HIVE_HOME}/scripts/lib/"*.sh
+
+    echo "Scripts installed."
 }
 
-register_plugin() {
-    echo "Registering Hive in Claude Code plugin registry..."
+install_skills() {
+    echo "Installing skills to ${CLAUDE_SKILLS_DIR}/..."
+    mkdir -p "${CLAUDE_SKILLS_DIR}"
 
-    # Ensure registry file exists with base structure
-    if [[ ! -f "${REGISTRY}" ]]; then
-        echo '{"version": 2, "plugins": {}}' > "${REGISTRY}"
-    fi
+    local skill_names=("hive" "hive-memory" "hive-status" "hive-compress")
 
-    local now
-    now=$(python3 -c "from datetime import datetime, timezone; print(datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%S.000Z'))")
+    for skill in "${skill_names[@]}"; do
+        local src="${REPO_DIR}/skills/${skill}"
+        local dst="${CLAUDE_SKILLS_DIR}/${skill}"
 
-    python3 - << PYEOF
-import json, sys
+        if [[ ! -d "${src}" ]]; then
+            echo "WARNING: skill source ${src} not found, skipping." >&2
+            continue
+        fi
 
-registry_path = "${REGISTRY}"
-cache_dir = "${CACHE_DIR}"
-now = "${now}"
+        # Remove old symlink or directory
+        rm -rf "${dst}"
 
-with open(registry_path, 'r') as f:
-    registry = json.load(f)
+        # Copy skill directory (not symlink — avoids breakage if repo moves)
+        cp -r "${src}" "${dst}"
+        echo "  Installed skill: ${skill}"
+    done
 
-key = "hive@local"
-entry = {
-    "scope": "user",
-    "installPath": cache_dir,
-    "version": "${PLUGIN_VERSION}",
-    "installedAt": now,
-    "lastUpdated": now
+    echo "Skills installed."
 }
 
-registry["plugins"][key] = [entry]
+install_references() {
+    echo "Installing reference files..."
+    local ref_src="${REPO_DIR}/skills/hive/references"
+    local ref_dst="${HIVE_HOME}/skills/hive/references"
 
-with open(registry_path, 'w') as f:
-    json.dump(registry, f, indent=2)
+    mkdir -p "${ref_dst}"
+    cp "${ref_src}/"*.md "${ref_dst}/"
+    echo "References installed to ${ref_dst}/"
+}
 
-print(f"Registered {key} at {cache_dir}")
-PYEOF
+install_agents() {
+    echo "Installing agent definitions..."
+    mkdir -p "${HIVE_HOME}/agents"
+    cp "${REPO_DIR}/agents/"*.md "${HIVE_HOME}/agents/"
+    echo "Agents installed to ${HIVE_HOME}/agents/"
 }
 
 init_db() {
     echo "Initializing Hive memory database..."
-    bash "${CACHE_DIR}/scripts/init.sh"
+    bash "${HIVE_HOME}/scripts/init.sh"
+}
+
+cleanup_old_install() {
+    # Remove stale plugin registry entry from previous install method
+    local registry="${HOME}/.claude/plugins/installed_plugins.json"
+    if [[ -f "${registry}" ]] && command -v python3 &>/dev/null; then
+        if python3 -c "
+import json, sys
+with open('${registry}', 'r') as f:
+    r = json.load(f)
+if 'hive@local' in r.get('plugins', {}):
+    del r['plugins']['hive@local']
+    with open('${registry}', 'w') as f:
+        json.dump(r, f, indent=2)
+    print('Removed stale hive@local entry from installed_plugins.json')
+" 2>/dev/null; then
+            true
+        fi
+    fi
+
+    # Remove old cache directory
+    local old_cache="${HOME}/.claude/plugins/cache/local/hive"
+    if [[ -d "${old_cache}" ]]; then
+        rm -rf "${old_cache}"
+        echo "Removed old plugin cache at ${old_cache}"
+    fi
 }
 
 print_next_steps() {
@@ -94,25 +116,33 @@ print_next_steps() {
     echo "========================================"
     echo ""
     echo "Restart Claude Code (or open a new session)."
-    echo "The following commands will be available:"
+    echo "The following skills will be available:"
     echo ""
     echo "  /hive <task>       — orchestrated task with memory + multi-agent"
     echo "  /hive-memory       — search and manage memories"
     echo "  /hive-status       — DB stats and session history"
     echo "  /hive-compress     — compress old memories (uses haiku)"
     echo ""
+    echo "Install location: ${HIVE_HOME}/"
+    echo "Skills location:  ${CLAUDE_SKILLS_DIR}/hive*"
+    echo "Database:         ${HIVE_DB:-${HIVE_HOME}/memory.db}"
+    echo ""
     echo "Optional: override DB location:"
     echo "  export HIVE_DB=/path/to/custom/memory.db"
-    echo "  # Add to ~/.zshrc or ~/.bashrc for persistence"
     echo ""
-    echo "Run tests:"
-    echo "  bash ${CACHE_DIR}/tests/run_all.sh"
+    echo "Run tests (from repo directory):"
+    echo "  bash tests/run_all.sh"
 }
 
 main() {
+    echo "Installing Hive..."
+    echo ""
     check_deps
-    install_files
-    register_plugin
+    cleanup_old_install
+    install_scripts
+    install_skills
+    install_references
+    install_agents
     init_db
     print_next_steps
 }

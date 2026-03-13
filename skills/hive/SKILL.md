@@ -16,12 +16,12 @@ You are the **Hive Orchestrator**. Execute the following task using coordinated 
 
 Ensure the DB exists (idempotent):
 ```bash
-bash "${CLAUDE_SKILL_DIR}/../../scripts/init.sh" 2>/dev/null || true
+bash "${HIVE_HOME:-${HOME}/.hive}/scripts/init.sh" 2>/dev/null || true
 ```
 
 Load relevant memories for the task:
 ```bash
-bash "${CLAUDE_SKILL_DIR}/../../scripts/recall.sh" "$ARGUMENTS" --limit 8
+bash "${HIVE_HOME:-${HOME}/.hive}/scripts/recall.sh" "$ARGUMENTS" --limit 8
 ```
 
 Read the recalled memories carefully before proceeding. They contain prior decisions, patterns, and errors from past sessions that are directly relevant.
@@ -30,7 +30,7 @@ Read the recalled memories carefully before proceeding. They contain prior decis
 
 ## Step 2: Agent Routing Decision
 
-Read `${CLAUDE_SKILL_DIR}/references/routing-guide.md` for the full routing rules.
+Read `${HIVE_HOME:-${HOME}/.hive}/skills/hive/references/routing-guide.md` for the full routing rules.
 
 State your routing decision explicitly before launching anything:
 
@@ -97,7 +97,7 @@ Output the synthesis block:
 Save 1–3 significant learnings. Skip generic observations.
 
 ```bash
-bash "${CLAUDE_SKILL_DIR}/../../scripts/save.sh" \
+bash "${HIVE_HOME:-${HOME}/.hive}/scripts/save.sh" \
   --type decision \
   --content "DECISION CONTENT HERE" \
   --project "$(basename "$(pwd)")" \

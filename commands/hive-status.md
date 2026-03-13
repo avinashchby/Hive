@@ -6,7 +6,7 @@ allowed-tools: Bash
 # Hive Status
 
 ```bash
-bash "${CLAUDE_PLUGIN_ROOT}/scripts/status.sh"
+bash "${HIVE_HOME:-${HOME}/.hive}/scripts/status.sh"
 ```
 
 Present the output above as a formatted report.

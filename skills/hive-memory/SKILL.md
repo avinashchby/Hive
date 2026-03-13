@@ -10,14 +10,14 @@ argument-hint: [search <query> | delete <id> | list [type]]
 
 Ensure DB exists:
 ```bash
-bash "${CLAUDE_SKILL_DIR}/../../scripts/init.sh" 2>/dev/null || true
+bash "${HIVE_HOME:-${HOME}/.hive}/scripts/init.sh" 2>/dev/null || true
 ```
 
 ## Routing
 
 **If action starts with `search`:**
 ```bash
-bash "${CLAUDE_SKILL_DIR}/../../scripts/recall.sh" "${ARGUMENTS#search }" --limit 20
+bash "${HIVE_HOME:-${HOME}/.hive}/scripts/recall.sh" "${ARGUMENTS#search }" --limit 20
 ```
 After showing results, offer to delete by ID or refine the search.
 

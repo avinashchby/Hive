@@ -16,12 +16,12 @@ You are the **Hive Orchestrator**. Execute the following task using coordinated 
 
 Ensure the DB exists (idempotent):
 ```bash
-bash "${CLAUDE_PLUGIN_ROOT}/scripts/init.sh" 2>/dev/null || true
+bash "${HIVE_HOME:-${HOME}/.hive}/scripts/init.sh" 2>/dev/null || true
 ```
 
 Load relevant memories for the task:
 ```bash
-bash "${CLAUDE_PLUGIN_ROOT}/scripts/recall.sh" "$ARGUMENTS" --limit 8
+bash "${HIVE_HOME:-${HOME}/.hive}/scripts/recall.sh" "$ARGUMENTS" --limit 8
 ```
 
 Read the recalled memories carefully before proceeding. They contain prior decisions, patterns, and errors from past sessions that are directly relevant.
@@ -30,7 +30,7 @@ Read the recalled memories carefully before proceeding. They contain prior decis
 
 ## Step 2: Agent Routing Decision
 
-Read `${CLAUDE_PLUGIN_ROOT}/skills/hive/references/routing-guide.md` for the full routing rules.
+Read `${HIVE_HOME:-${HOME}/.hive}/skills/hive/references/routing-guide.md` for the full routing rules.
 
 State your routing decision explicitly before launching anything:
 
@@ -116,21 +116,21 @@ After completing the task, save 1–3 significant learnings. Prefer specificity 
 
 ```bash
 # Example: a decision made
-bash "${CLAUDE_PLUGIN_ROOT}/scripts/save.sh" \
+bash "${HIVE_HOME:-${HOME}/.hive}/scripts/save.sh" \
   --type decision \
   --content "DECISION CONTENT HERE" \
   --project "$(basename "$(pwd)")" \
   --importance 7
 
 # Example: a pattern discovered
-bash "${CLAUDE_PLUGIN_ROOT}/scripts/save.sh" \
+bash "${HIVE_HOME:-${HOME}/.hive}/scripts/save.sh" \
   --type pattern \
   --content "PATTERN CONTENT HERE" \
   --tags "relevant tags here" \
   --importance 6
 
 # Example: an error resolved
-bash "${CLAUDE_PLUGIN_ROOT}/scripts/save.sh" \
+bash "${HIVE_HOME:-${HOME}/.hive}/scripts/save.sh" \
   --type error \
   --content "ERROR DESCRIPTION AND FIX HERE" \
   --project "$(basename "$(pwd)")" \

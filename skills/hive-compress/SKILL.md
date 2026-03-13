@@ -17,7 +17,7 @@ sqlite3 "${HIVE_DB:-${HOME}/.hive/memory.db}" \
 Ask the user to confirm before proceeding. If confirmed:
 
 ```bash
-bash "${CLAUDE_SKILL_DIR}/../../scripts/compress.sh"
+bash "${HIVE_HOME:-${HOME}/.hive}/scripts/compress.sh"
 ```
 
 Then show updated memory count:

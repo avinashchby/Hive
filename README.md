@@ -29,11 +29,15 @@ cd Hive-Claude-Code-Skill
 bash install.sh
 ```
 
-`install.sh` copies Hive to `~/.claude/hive/` and initializes the SQLite database.
+`install.sh`:
+- Copies scripts to `~/.hive/scripts/`
+- Copies skills to `~/.claude/skills/hive*/` (auto-discovered by Claude Code)
+- Initializes the SQLite database at `~/.hive/memory.db`
+- Cleans up any previous plugin-registry install
 
-Then restart Claude Code. The `/hive` commands will be available automatically — no flags needed.
+Then restart Claude Code. The `/hive` skills will be available automatically — no flags needed.
 
-**Requirements:** macOS (sqlite3 built-in) or Linux with `sqlite3` + FTS5.
+**Requirements:** macOS (sqlite3 built-in) or Linux with `sqlite3` + FTS5. No Python, Node, or npm.
 
 ---
 
