@@ -8,19 +8,16 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=lib/db.sh
 source "${SCRIPT_DIR}/lib/db.sh"
 
-# check_already_applied: probe by attempting an INSERT with type='architecture' in a rollback.
-# Returns 0 if architecture is already a valid type, 1 otherwise.
+# check_already_applied: inspect the CREATE TABLE DDL in sqlite_master to see if
+# 'architecture' is already present in the CHECK constraint. No INSERT needed.
+# Returns 0 if already applied, 1 otherwise.
 check_already_applied() {
-    local result
-    result=$(db << 'SQL' 2>&1
-SAVEPOINT probe;
-INSERT INTO memories(type, content) VALUES ('architecture', 'probe');
-ROLLBACK TO probe;
-RELEASE probe;
-SELECT 'ok';
-SQL
-    ) || true
-    [[ "${result}" == *"ok"* ]]
+    local ddl
+    ddl=$(db "SELECT sql FROM sqlite_master WHERE type='table' AND name='memories';" 2>/dev/null || echo "")
+    if [[ "${ddl}" == *"architecture"* ]]; then
+        return 0
+    fi
+    return 1
 }
 
 recreate_triggers() {

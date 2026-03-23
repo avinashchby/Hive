@@ -8,15 +8,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=lib/db.sh
 source "${SCRIPT_DIR}/lib/db.sh"
 
-main() {
-    echo "Initializing Hive memory store at: ${DB_PATH}"
-    mkdir -p "$(dirname "${DB_PATH}")"
-
-    # Migrate existing DBs before applying CREATE TABLE IF NOT EXISTS.
-    if db_exists; then
-        bash "${SCRIPT_DIR}/migrate.sh"
-    fi
-
+create_schema() {
     db << 'SQL'
 PRAGMA journal_mode = WAL;
 PRAGMA foreign_keys = ON;
@@ -87,6 +79,18 @@ CREATE TABLE IF NOT EXISTS compress_log (
     bytes_saved  INTEGER NOT NULL DEFAULT 0
 );
 SQL
+}
+
+main() {
+    echo "Initializing Hive memory store at: ${DB_PATH}"
+    mkdir -p "$(dirname "${DB_PATH}")"
+
+    # Migrate existing DBs before applying CREATE TABLE IF NOT EXISTS.
+    if db_exists; then
+        bash "${SCRIPT_DIR}/migrate.sh"
+    fi
+
+    create_schema
 
     echo "Hive initialized successfully."
     db "SELECT COUNT(*) || ' memories in store' FROM memories;"
