@@ -10,11 +10,18 @@ source "${SCRIPT_DIR}/lib/db.sh"
 
 # check_already_applied: inspect the CREATE TABLE DDL in sqlite_master to see if
 # 'architecture' is already present in the CHECK constraint. No INSERT needed.
-# Returns 0 if already applied, 1 otherwise.
+# Returns 0 if already applied (or table doesn't exist yet), 1 otherwise.
 check_already_applied() {
+    local tbl
+    tbl=$(db "SELECT name FROM sqlite_master WHERE type='table' AND name='memories';" 2>/dev/null || echo "")
+    if [[ -z "${tbl}" ]]; then
+        # No memories table yet — new DB, init.sh will create it correctly
+        return 0
+    fi
     local ddl
-    ddl=$(db "SELECT sql FROM sqlite_master WHERE type='table' AND name='memories';" 2>/dev/null || echo "")
+    ddl=$(db "SELECT sql FROM sqlite_master WHERE type='table' AND name='memories';")
     if [[ "${ddl}" == *"architecture"* ]]; then
+        echo "Migration already applied."
         return 0
     fi
     return 1
