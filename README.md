@@ -1,11 +1,12 @@
 # Hive
 
-**Long-term memory and multi-agent orchestration for Claude Code.**
+**Long-term memory and multi-agent orchestration for Claude Code — including greenfield project bootstrapping.**
 
-Hive is a Claude Code plugin that gives Claude two superpowers it doesn't have by default:
+Hive is a Claude Code plugin that gives Claude three superpowers it doesn't have by default:
 
 1. **Persistent memory** across all projects and sessions — stored locally in SQLite, never sent anywhere.
-2. **Specialist agents** (Planner, Coder, Debugger, Reviewer) running in parallel, coordinated by an orchestrator that loads relevant memories before dispatching work.
+2. **Specialist agents** (Architect, Scaffolder, Planner, Coder, Debugger, Reviewer) coordinated by an orchestrator that loads relevant memories before dispatching work.
+3. **Greenfield bootstrapping** — start a new project from scratch with `/hive-new`: architecture decision, scaffolded files, and seeded memory, all in one command.
 
 ---
 
@@ -14,18 +15,20 @@ Hive is a Claude Code plugin that gives Claude two superpowers it doesn't have b
 | Problem | Hive's solution |
 |---------|----------------|
 | Claude forgets everything between sessions | SQLite FTS5 memory, survives restarts |
-| One agent does everything mediocrely | Specialists: plan → code → debug → review |
+| No context when returning to a project | Session continuity — "Last session:" injected automatically |
+| Starting from scratch has no workflow | `/hive-new` → Architect ADR → user approval → Scaffolder → seeded memory |
+| One agent does everything mediocrely | 6 specialists: architect → scaffold → plan → code → debug → review |
 | Memory systems need Chroma, LangChain, etc. | Zero dependencies: just `sqlite3` (built into macOS) |
+| Existing DBs break when adding new memory types | Safe idempotent migration (`migrate.sh`) |
 | Compression costs tokens over time | `claude-haiku` compresses old memories cheaply |
-| Memory leaks across unrelated projects | Per-project scoping + global fallback |
 
 ---
 
 ## Install
 
 ```bash
-git clone https://github.com/avinashcheby/Hive-Claude-Code-Skill
-cd Hive-Claude-Code-Skill
+git clone https://github.com/avinashchby/Hive.git
+cd Hive
 bash install.sh
 ```
 
@@ -33,9 +36,9 @@ bash install.sh
 - Copies scripts to `~/.hive/scripts/`
 - Copies skills to `~/.claude/skills/hive*/` (auto-discovered by Claude Code)
 - Initializes the SQLite database at `~/.hive/memory.db`
-- Cleans up any previous plugin-registry install
+- Runs any pending schema migrations automatically
 
-Then restart Claude Code. The `/hive` skills will be available automatically — no flags needed.
+Then restart Claude Code. All `/hive*` skills are available immediately — no flags needed.
 
 **Requirements:** macOS (sqlite3 built-in) or Linux with `sqlite3` + FTS5. No Python, Node, or npm.
 
@@ -43,13 +46,33 @@ Then restart Claude Code. The `/hive` skills will be available automatically —
 
 ## Commands
 
+### `/hive-new <description>`
+
+Bootstrap a brand-new project from scratch. Give it a one-line description and Hive will:
+
+1. Recall your past stack preferences from memory
+2. Launch the **Architect** agent to produce an Architecture Decision Record (tech stack, module boundaries, key interfaces)
+3. Present the ADR to you for approval — tweak anything before proceeding
+4. Launch the **Scaffolder** agent to create the directory structure, build files, README, CI skeleton, and source stubs
+5. Seed initial memories (`architecture` + `decision` types) for the project
+6. Log the session
+
+```
+/hive-new a REST API for an e-commerce platform in Go
+/hive-new a CLI tool for managing dotfiles in Rust
+/hive-new a data pipeline that ingests Stripe webhooks into Postgres
+```
+
 ### `/hive <task>`
 
-The main command. Give it any task and Hive will:
-1. Load relevant memories from past sessions
-2. Route to appropriate specialist agents (in parallel)
-3. Synthesize the results
-4. Save learnings back to memory
+The main command for ongoing work. Give it any task and Hive will:
+
+1. Inject "Last session:" context for this project (session continuity)
+2. Load relevant memories from past sessions
+3. Detect if the task is greenfield → redirect to `/hive-new` if so
+4. Route to appropriate specialist agents (in parallel)
+5. Synthesize the results
+6. Save learnings back to memory
 
 ```
 /hive build a REST API for user authentication with JWT
@@ -63,17 +86,17 @@ Browse and manage your memory store.
 
 ```
 /hive-memory search postgres
-/hive-memory list error
+/hive-memory list architecture
 /hive-memory delete 42
 ```
 
 ### `/hive-status`
 
-Show memory counts, recent sessions, DB size, and compression history.
+Show memory counts by type, recent sessions, DB size, and compression history.
 
 ### `/hive-compress`
 
-Compress old, low-importance memories using `claude-haiku`. Run this after large sessions to keep the DB lean.
+Compress old, low-importance memories using `claude-haiku`. Run after large sessions to keep the DB lean.
 
 ---
 
@@ -81,7 +104,7 @@ Compress old, low-importance memories using `claude-haiku`. Run this after large
 
 Memories are stored in `~/.hive/memory.db` (SQLite with FTS5 full-text search).
 
-**Five memory types:**
+**Six memory types:**
 
 | Type | Example |
 |------|---------|
@@ -90,6 +113,7 @@ Memories are stored in `~/.hive/memory.db` (SQLite with FTS5 full-text search).
 | `pattern` | "All API handlers return `(Response, StatusCode)`, never panic" |
 | `error` | "SQLite 'database is locked' when WAL mode is off" |
 | `preference` | "Prefers table-driven tests, dislikes mocks" |
+| `architecture` | "Chose hexagonal architecture to isolate DB from domain logic" |
 
 **Ranking formula:**
 ```
@@ -97,6 +121,8 @@ score = (importance/10) × (1 / (1 + days_since_access)) × (1 + access_count)
 ```
 
 High importance + recent + frequently used = top of recall results.
+
+**Session continuity:** Every `/hive` invocation queries `project_context` for the current project and prepends a "Last session:" block — what was worked on, which agents ran, when. No more re-explaining context at the start of every session.
 
 **Compression:** Memories with importance ≤ 3, never accessed, older than 30 days are summarized by `claude-haiku` into a single `pattern` entry. Tune with env vars:
 ```bash
@@ -109,16 +135,18 @@ export HIVE_COMPRESS_BATCH=20             # memories per batch
 
 ## How Agents Work
 
-Hive has four specialist agents:
+Hive has six specialist agents:
 
 | Agent | Role | When used |
 |-------|------|-----------|
+| **Architect** | Tech stack choice, module boundaries, ADR | `/hive-new`, system design tasks |
+| **Scaffolder** | Directory structure, boilerplate, CI skeleton | `/hive-new`, after Architect approves ADR |
 | **Planner** | Decomposes task → steps, files, risks | Multi-step tasks, architecture |
 | **Coder** | Implements code + tests | Any implementation work |
 | **Debugger** | Root cause analysis + minimal fix | Error messages, test failures |
 | **Reviewer** | Security, correctness, convention | Code touching APIs, auth, storage |
 
-The orchestrator (`/hive`) decides which agents to launch based on the task, launches them **in parallel**, then synthesizes the results. It never launches agents whose output it won't use.
+The orchestrator decides which agents to launch, runs them **in parallel where possible** (Architect → Scaffolder is sequential by design), then synthesizes the results.
 
 ---
 
@@ -127,7 +155,7 @@ The orchestrator (`/hive`) decides which agents to launch based on the task, lau
 | Env var | Default | Description |
 |---------|---------|-------------|
 | `HIVE_DB` | `~/.hive/memory.db` | Override DB location |
-| `HIVE_HOME` | `~/.hive` | Override DB directory |
+| `HIVE_HOME` | `~/.hive` | Override install directory |
 | `HIVE_COMPRESS_AGE` | `30` | Days before compression eligibility |
 | `HIVE_COMPRESS_MAX_IMPORTANCE` | `3` | Max importance level to compress |
 | `HIVE_COMPRESS_BATCH` | `20` | Memories per compression batch |
@@ -140,7 +168,7 @@ The orchestrator (`/hive`) decides which agents to launch based on the task, lau
 bash tests/run_all.sh
 ```
 
-Tests use isolated temp DBs and do not make network calls.
+5 suites, 43 tests. Uses isolated temp DBs, no network calls, no `claude` CLI invocations.
 
 ---
 
