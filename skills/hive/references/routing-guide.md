@@ -91,7 +91,6 @@
 | New feature, multi-file | ✓ | ✓ | — | ✓ | — | — |
 | Simple bug fix | — | ✓ | ✓ | — | — | — |
 | Debug-only (no fix yet) | — | — | ✓ | — | — | — |
-| Architecture design | ✓ | — | — | — | — | — |
 | Code review request | — | — | — | ✓ | — | — |
 | Refactor | ✓ | ✓ | — | ✓ | — | — |
 | New feature, single file | — | ✓ | — | ✓ | — | — |

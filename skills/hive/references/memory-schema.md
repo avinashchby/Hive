@@ -5,7 +5,7 @@
 | Column | Type | Description |
 |--------|------|-------------|
 | `id` | INTEGER PK | Auto-increment |
-| `type` | TEXT | One of: `fact`, `decision`, `pattern`, `error`, `preference` |
+| `type` | TEXT | One of: `fact`, `decision`, `pattern`, `error`, `preference`, `architecture` |
 | `content` | TEXT | The memory content (full text, FTS5 indexed) |
 | `project` | TEXT | Project name, e.g. `basename $(pwd)`. Empty = global |
 | `tags` | TEXT | Space-separated tokens, also FTS5 indexed |
