@@ -12,13 +12,18 @@ main() {
     echo "Initializing Hive memory store at: ${DB_PATH}"
     mkdir -p "$(dirname "${DB_PATH}")"
 
+    # Migrate existing DBs before applying CREATE TABLE IF NOT EXISTS.
+    if db_exists; then
+        bash "${SCRIPT_DIR}/migrate.sh"
+    fi
+
     db << 'SQL'
 PRAGMA journal_mode = WAL;
 PRAGMA foreign_keys = ON;
 
 CREATE TABLE IF NOT EXISTS memories (
     id            INTEGER PRIMARY KEY AUTOINCREMENT,
-    type          TEXT    NOT NULL CHECK(type IN ('fact','decision','pattern','error','preference')),
+    type          TEXT    NOT NULL CHECK(type IN ('fact','decision','pattern','error','preference','architecture')),
     content       TEXT    NOT NULL,
     project       TEXT    NOT NULL DEFAULT '',
     tags          TEXT    NOT NULL DEFAULT '',
@@ -63,6 +68,14 @@ CREATE TABLE IF NOT EXISTS sessions (
     started_at  INTEGER NOT NULL DEFAULT (strftime('%s','now')),
     ended_at    INTEGER,
     cost_note   TEXT    NOT NULL DEFAULT ''
+);
+
+-- Per-project context: tracks last task and agents used for status reporting.
+CREATE TABLE IF NOT EXISTS project_context (
+    project     TEXT    PRIMARY KEY,
+    last_task   TEXT    NOT NULL DEFAULT '',
+    last_agents TEXT    NOT NULL DEFAULT '',
+    updated_at  INTEGER NOT NULL DEFAULT (strftime('%s','now'))
 );
 
 -- Compression audit log.
