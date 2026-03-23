@@ -21,7 +21,6 @@ check_already_applied() {
     local ddl
     ddl=$(db "SELECT sql FROM sqlite_master WHERE type='table' AND name='memories';")
     if [[ "${ddl}" == *"architecture"* ]]; then
-        echo "Migration already applied."
         return 0
     fi
     return 1
