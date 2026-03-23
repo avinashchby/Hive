@@ -3,12 +3,12 @@
 set -euo pipefail
 IFS=$'\n\t'
 
-VALID_TYPES="fact decision pattern error preference"
+VALID_TYPES="fact decision pattern error preference architecture"
 
 validate_type() {
     local t="$1"
     case "${t}" in
-        fact|decision|pattern|error|preference) return 0 ;;
+        fact|decision|pattern|error|preference|architecture) return 0 ;;
         *)
             echo "ERROR: invalid type '${t}'. Must be one of: ${VALID_TYPES}" >&2
             return 1

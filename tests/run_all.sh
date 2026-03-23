@@ -27,6 +27,7 @@ run_suite "test_init.sh"
 run_suite "test_save.sh"
 run_suite "test_recall.sh"
 run_suite "test_compress.sh"
+run_suite "test_seed.sh"
 
 echo "================================"
 echo "Results: ${PASS} passed, ${FAIL} failed"

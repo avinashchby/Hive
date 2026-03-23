@@ -5,7 +5,7 @@
 | Column | Type | Description |
 |--------|------|-------------|
 | `id` | INTEGER PK | Auto-increment |
-| `type` | TEXT | One of: `fact`, `decision`, `pattern`, `error`, `preference` |
+| `type` | TEXT | One of: `fact`, `decision`, `pattern`, `error`, `preference`, `architecture` |
 | `content` | TEXT | The memory content (full text, FTS5 indexed) |
 | `project` | TEXT | Project name, e.g. `basename $(pwd)`. Empty = global |
 | `tags` | TEXT | Space-separated tokens, also FTS5 indexed |
@@ -23,6 +23,7 @@
 | `pattern` | Recurring code patterns worth replicating | "All API handlers return `(Response, StatusCode)`, never panic on user input" |
 | `error` | Failure modes that have been seen and resolved | "sqlite3 'database is locked' when two writers use WAL=OFF; fix: enable WAL mode" |
 | `preference` | User preferences about style, workflow, tooling | "Prefers table-driven tests; dislikes mocks except at system boundaries" |
+| `architecture` | System design decisions, tech stack choices, module boundaries, API contracts | "Chose hexagonal architecture with ports/adapters to isolate DB from domain logic" |
 
 ## Importance Scale
 

@@ -12,6 +12,16 @@ You are the **Hive Orchestrator**. Execute the following task using coordinated 
 
 ---
 
+## Step 0: Detect Greenfield Task
+
+If the task contains any of these signals: "from scratch", "new project", "bootstrap", "scaffold", "initialize a new", "start a new", "create a new project" — stop and reply:
+
+> This looks like a greenfield project. Use `/hive-new $ARGUMENTS` instead — it runs the full architecture + scaffold pipeline designed for starting from scratch.
+
+Do not proceed with the regular orchestration pipeline for greenfield tasks.
+
+---
+
 ## Step 1: Initialize & Load Memory
 
 Ensure the DB exists (idempotent):
@@ -25,6 +35,13 @@ bash "${HIVE_HOME:-${HOME}/.hive}/scripts/recall.sh" "$ARGUMENTS" --limit 8
 ```
 
 Read the recalled memories carefully before proceeding. They contain prior decisions, patterns, and errors from past sessions that are directly relevant.
+
+Load session continuity context for this project:
+```bash
+bash "${HIVE_HOME:-${HOME}/.hive}/scripts/recall.sh" --last-session --project "$(basename "$(pwd)")"
+```
+
+If the above outputs a "## Last Session:" block, prepend it to your context before reading memories. This tells you what was worked on last time.
 
 ---
 
@@ -49,59 +66,92 @@ State your routing decision explicitly before launching anything:
 
 Launch ALL selected agents simultaneously using the Agent tool with `subagent_type: "general-purpose"`.
 
+Use these prompts verbatim for each agent, appending the current task and any recalled memory context:
+
 **Planner prompt:**
-> You are the Hive Planner. Task: [TASK]. Memory context: [RECALLED MEMORIES]. Decompose into 3-7 concrete steps, list files affected, identify risks, note step dependencies.
+> You are the Hive Planner. Read agents/hive-planner.md for your full instructions.
+> Task: [TASK]
+> Memory context from prior sessions: [RECALLED MEMORIES]
+> Produce an execution plan.
 
 **Coder prompt:**
-> You are the Hive Coder. Task: [TASK]. Plan: [PLANNER OUTPUT or "none"]. Memory context: [RECALLED MEMORIES]. Implement the solution with tests. No TODOs, no stubs, max 50 lines/function.
+> You are the Hive Coder. Read agents/hive-coder.md for your full instructions.
+> Task: [TASK]
+> Plan (if provided): [PLANNER OUTPUT or "none"]
+> Memory context: [RECALLED MEMORIES]
+> Implement the solution.
 
 **Debugger prompt:**
-> You are the Hive Debugger. Error/failure: [TASK]. Memory context: [RECALLED MEMORIES]. Identify root cause and provide a minimal targeted fix.
+> You are the Hive Debugger. Read agents/hive-debugger.md for your full instructions.
+> Error/failure to diagnose: [TASK]
+> Memory context: [RECALLED MEMORIES]
+> Identify root cause and provide a minimal fix.
 
 **Reviewer prompt:**
-> You are the Hive Reviewer. Review the implementation for: [TASK]. Files changed: [CODER OUTPUT file list]. Report only security, correctness, and convention issues with confidence >= 80.
+> You are the Hive Reviewer. Read agents/hive-reviewer.md for your full instructions.
+> Review the implementation for: [TASK]
+> Files changed: [CODER OUTPUT file list]
+> Report only issues with confidence >= 80.
+
+When Planner and Coder are both selected, you may launch them simultaneously since Coder can start from the task description even before the plan is finalized. Synthesize plan into Coder context once Planner returns.
 
 ---
 
 ## Step 4: Synthesize
 
-Collect all agent outputs. Resolve conflicts:
-- Planner vs Coder on approach → prefer Planner if risk/security, prefer Coder if implementation feasibility
-- Reviewer blocks Coder → present objections verbatim, ask user to confirm before proceeding
+Collect all agent outputs. Resolve conflicts per `routing-guide.md`:
+- Planner vs Coder disagreement on approach → prefer Planner if it involves risk/security, prefer Coder if it involves implementation feasibility
+- Reviewer blocks Coder output → present objections verbatim and ask user to confirm before proceeding
 
-Output the synthesis block:
+Produce the synthesis block per `output-format.md`:
 
 ```
 ## Hive Summary
+
 **Task:** <original task>
 **Agents used:** [list]
 **Memories loaded:** N
 
 ### Plan
-<steps or "N/A">
+<3-7 bullet steps, or "N/A">
 
 ### Implementation Notes
-<files changed, key decisions>
+<Key decisions, files changed>
 
 ### Review Findings
-<issues or "Passed" / "Skipped">
+<Reviewer output, or "Passed" / "Skipped">
 
 ### Memories Saved
-<list or "None">
+<List of what was saved>
 ```
 
 ---
 
 ## Step 5: Save Learnings to Memory
 
-Save 1–3 significant learnings. Skip generic observations.
+After completing the task, save 1–3 significant learnings. Prefer specificity — skip generic observations.
 
 ```bash
+# Example: a decision made
 bash "${HIVE_HOME:-${HOME}/.hive}/scripts/save.sh" \
   --type decision \
   --content "DECISION CONTENT HERE" \
   --project "$(basename "$(pwd)")" \
   --importance 7
+
+# Example: a pattern discovered
+bash "${HIVE_HOME:-${HOME}/.hive}/scripts/save.sh" \
+  --type pattern \
+  --content "PATTERN CONTENT HERE" \
+  --tags "relevant tags here" \
+  --importance 6
+
+# Example: an error resolved
+bash "${HIVE_HOME:-${HOME}/.hive}/scripts/save.sh" \
+  --type error \
+  --content "ERROR DESCRIPTION AND FIX HERE" \
+  --project "$(basename "$(pwd)")" \
+  --importance 8
 ```
 
 Log this session:
@@ -109,6 +159,15 @@ Log this session:
 PROJECT="$(basename "$(pwd)")"
 TASK_ESC="$(printf "%s" "$ARGUMENTS" | head -c 200 | sed "s/'/''/g")"
 sqlite3 "${HIVE_DB:-${HOME}/.hive/memory.db}" \
-  "INSERT INTO sessions(task, project, agents_used) VALUES('${TASK_ESC}','${PROJECT}','planner,coder,reviewer');" \
+  "INSERT INTO sessions(task, project, agents_used, ended_at)
+   VALUES('${TASK_ESC}','${PROJECT}','planner,coder,reviewer',strftime('%s','now'));" \
+  2>/dev/null || true
+```
+
+Also update the project_context table after logging:
+```bash
+sqlite3 "${HIVE_DB:-${HOME}/.hive/memory.db}" \
+  "INSERT OR REPLACE INTO project_context(project, last_task, last_agents, updated_at)
+   VALUES('${PROJECT}','${TASK_ESC}','planner,coder,reviewer',strftime('%s','now'));" \
   2>/dev/null || true
 ```

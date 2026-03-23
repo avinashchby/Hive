@@ -15,15 +15,17 @@ QUERY=""
 LIMIT=10
 FILTER_PROJECT=""
 FILTER_TYPE=""
+LAST_SESSION=0
 
 parse_args() {
     while [[ $# -gt 0 ]]; do
         case "$1" in
-            --limit)   LIMIT="$2";          shift 2 ;;
-            --project) FILTER_PROJECT="$2"; shift 2 ;;
-            --type)    FILTER_TYPE="$2";    shift 2 ;;
-            -*)        echo "Unknown flag: $1" >&2; exit 1 ;;
-            *)         QUERY="${QUERY:+${QUERY} }$1"; shift ;;
+            --limit)        LIMIT="$2";          shift 2 ;;
+            --project)      FILTER_PROJECT="$2"; shift 2 ;;
+            --type)         FILTER_TYPE="$2";    shift 2 ;;
+            --last-session) LAST_SESSION=1;      shift   ;;
+            -*)             echo "Unknown flag: $1" >&2; exit 1 ;;
+            *)              QUERY="${QUERY:+${QUERY} }$1"; shift ;;
         esac
     done
 }
@@ -97,12 +99,58 @@ format_output() {
     fi
 }
 
+show_last_session() {
+    local project
+    project="${FILTER_PROJECT}"
+    if [[ -z "${project}" ]]; then
+        echo "ERROR: --project is required with --last-session" >&2
+        exit 1
+    fi
+
+    local esc_project
+    esc_project="$(escape_sql "${project}")"
+    local row
+    row=$(db "SELECT last_task, last_agents, updated_at
+              FROM project_context
+              WHERE project = '${esc_project}'
+              LIMIT 1;")
+
+    if [[ -z "${row}" ]]; then
+        return 0
+    fi
+
+    local last_task last_agents updated_at
+    last_task="${row%%|*}"
+    row="${row#*|}"
+    last_agents="${row%%|*}"
+    updated_at="${row#*|}"
+
+    if [[ -z "${last_task}" ]]; then
+        return 0
+    fi
+
+    local human_date
+    human_date=$(date -r "${updated_at}" '+%Y-%m-%d %H:%M:%S' 2>/dev/null \
+                 || date -d "@${updated_at}" '+%Y-%m-%d %H:%M:%S' 2>/dev/null \
+                 || printf "%s" "${updated_at}")
+
+    echo "## Last Session: ${project}"
+    echo "**Task:** ${last_task}"
+    echo "**Agents used:** ${last_agents}"
+    echo "**Updated:** ${human_date}"
+}
+
 main() {
     parse_args "$@"
     require_db
 
+    if [[ "${LAST_SESSION}" -eq 1 ]]; then
+        show_last_session
+        return 0
+    fi
+
     if [[ -z "${QUERY}" ]]; then
-        echo "Usage: recall.sh <query> [--limit N] [--project PROJECT] [--type TYPE]" >&2
+        echo "Usage: recall.sh <query> [--limit N] [--project PROJECT] [--type TYPE] [--last-session]" >&2
         exit 1
     fi
 

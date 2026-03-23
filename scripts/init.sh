@@ -8,17 +8,14 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=lib/db.sh
 source "${SCRIPT_DIR}/lib/db.sh"
 
-main() {
-    echo "Initializing Hive memory store at: ${DB_PATH}"
-    mkdir -p "$(dirname "${DB_PATH}")"
-
+create_tables() {
     db << 'SQL'
 PRAGMA journal_mode = WAL;
 PRAGMA foreign_keys = ON;
 
 CREATE TABLE IF NOT EXISTS memories (
     id            INTEGER PRIMARY KEY AUTOINCREMENT,
-    type          TEXT    NOT NULL CHECK(type IN ('fact','decision','pattern','error','preference')),
+    type          TEXT    NOT NULL CHECK(type IN ('fact','decision','pattern','error','preference','architecture')),
     content       TEXT    NOT NULL,
     project       TEXT    NOT NULL DEFAULT '',
     tags          TEXT    NOT NULL DEFAULT '',
@@ -28,6 +25,38 @@ CREATE TABLE IF NOT EXISTS memories (
     last_accessed INTEGER NOT NULL DEFAULT (strftime('%s','now'))
 );
 
+-- Sessions: one row per /hive invocation for audit and status reporting.
+CREATE TABLE IF NOT EXISTS sessions (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    task        TEXT    NOT NULL,
+    project     TEXT    NOT NULL DEFAULT '',
+    agents_used TEXT    NOT NULL DEFAULT '',
+    started_at  INTEGER NOT NULL DEFAULT (strftime('%s','now')),
+    ended_at    INTEGER,
+    cost_note   TEXT    NOT NULL DEFAULT ''
+);
+
+-- Per-project context: tracks last task and agents used for status reporting.
+CREATE TABLE IF NOT EXISTS project_context (
+    project     TEXT    PRIMARY KEY,
+    last_task   TEXT    NOT NULL DEFAULT '',
+    last_agents TEXT    NOT NULL DEFAULT '',
+    updated_at  INTEGER NOT NULL DEFAULT (strftime('%s','now'))
+);
+
+-- Compression audit log.
+CREATE TABLE IF NOT EXISTS compress_log (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    run_at       INTEGER NOT NULL DEFAULT (strftime('%s','now')),
+    memories_in  INTEGER NOT NULL,
+    memories_out INTEGER NOT NULL,
+    bytes_saved  INTEGER NOT NULL DEFAULT 0
+);
+SQL
+}
+
+create_fts_index() {
+    db << 'SQL'
 -- External-content FTS5 table: porter stemmer handles plurals/conjugations.
 -- Single source of truth stays in memories; triggers keep FTS index in sync.
 CREATE VIRTUAL TABLE IF NOT EXISTS memories_fts
@@ -53,27 +82,24 @@ CREATE TRIGGER IF NOT EXISTS memories_au AFTER UPDATE ON memories BEGIN
     VALUES ('delete', old.id, old.content, old.tags);
     INSERT INTO memories_fts(rowid, content, tags) VALUES (new.id, new.content, new.tags);
 END;
-
--- Sessions: one row per /hive invocation for audit and status reporting.
-CREATE TABLE IF NOT EXISTS sessions (
-    id          INTEGER PRIMARY KEY AUTOINCREMENT,
-    task        TEXT    NOT NULL,
-    project     TEXT    NOT NULL DEFAULT '',
-    agents_used TEXT    NOT NULL DEFAULT '',
-    started_at  INTEGER NOT NULL DEFAULT (strftime('%s','now')),
-    ended_at    INTEGER,
-    cost_note   TEXT    NOT NULL DEFAULT ''
-);
-
--- Compression audit log.
-CREATE TABLE IF NOT EXISTS compress_log (
-    id           INTEGER PRIMARY KEY AUTOINCREMENT,
-    run_at       INTEGER NOT NULL DEFAULT (strftime('%s','now')),
-    memories_in  INTEGER NOT NULL,
-    memories_out INTEGER NOT NULL,
-    bytes_saved  INTEGER NOT NULL DEFAULT 0
-);
 SQL
+}
+
+create_schema() {
+    create_tables
+    create_fts_index
+}
+
+main() {
+    echo "Initializing Hive memory store at: ${DB_PATH}"
+    mkdir -p "$(dirname "${DB_PATH}")"
+
+    # Migrate existing DBs before applying CREATE TABLE IF NOT EXISTS.
+    if db_exists; then
+        bash "${SCRIPT_DIR}/migrate.sh"
+    fi
+
+    create_schema
 
     echo "Hive initialized successfully."
     db "SELECT COUNT(*) || ' memories in store' FROM memories;"

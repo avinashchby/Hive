@@ -30,11 +30,11 @@ count=$(sqlite3 "${HIVE_DB}" "SELECT COUNT(*) FROM memories WHERE type='fact';")
 [[ "${count}" -eq 1 ]] && pass "fact row inserted" || fail "fact row missing (count=${count})"
 
 # Test 3: save all valid types
-for t in decision pattern error preference; do
+for t in decision pattern error preference architecture; do
     bash "${SCRIPTS_DIR}/save.sh" --type "${t}" --content "test ${t}" > /dev/null
 done
 count=$(sqlite3 "${HIVE_DB}" "SELECT COUNT(*) FROM memories;")
-[[ "${count}" -eq 5 ]] && pass "all 5 types save correctly" || fail "expected 5 rows, got ${count}"
+[[ "${count}" -eq 6 ]] && pass "all 6 types save correctly" || fail "expected 6 rows, got ${count}"
 
 # Test 4: invalid type is rejected
 if bash "${SCRIPTS_DIR}/save.sh" --type "bogus" --content "test" 2>/dev/null; then
