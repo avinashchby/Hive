@@ -1,0 +1,5 @@
+# Git worktrees — local workspace, never committed
+.worktrees/
+
+# macOS
+.DS_Store
