@@ -58,20 +58,46 @@
 - Coder made only trivial changes (renaming, formatting, adding a comment)
 - No Coder output exists to review
 
+### Architect
+
+**Launch when:**
+- Task is `/hive-new` (always)
+- User says "design the system", "choose the stack", "what architecture should I use"
+- Starting a new project with no existing files in cwd
+
+**Skip when:**
+- Existing project with established architecture
+- Task is a feature add or bug fix (Planner handles decomposition)
+- User has already specified the tech stack explicitly
+
+### Scaffolder
+
+**Launch when:**
+- Task is `/hive-new` (always, after Architect)
+- Architect has produced an ADR and user has approved it
+- User says "scaffold", "create the project structure", "set up the boilerplate"
+
+**Skip when:**
+- Project already has files (check with Glob first)
+- No ADR available — Scaffolder cannot run without Architect output
+- Task is adding to an existing project (Coder handles this)
+
 ---
 
 ## Common Routing Patterns
 
-| Task Type | Planner | Coder | Debugger | Reviewer |
-|-----------|---------|-------|----------|----------|
-| New feature, multi-file | ✓ | ✓ | — | ✓ |
-| Simple bug fix | — | ✓ | ✓ | — |
-| Debug-only (no fix yet) | — | — | ✓ | — |
-| Architecture design | ✓ | — | — | — |
-| Code review request | — | — | — | ✓ |
-| Refactor | ✓ | ✓ | — | ✓ |
-| New feature, single file | — | ✓ | — | ✓ |
-| Security audit | — | — | — | ✓ |
+| Task Type | Planner | Coder | Debugger | Reviewer | Architect | Scaffolder |
+|-----------|---------|-------|----------|----------|-----------|------------|
+| New feature, multi-file | ✓ | ✓ | — | ✓ | — | — |
+| Simple bug fix | — | ✓ | ✓ | — | — | — |
+| Debug-only (no fix yet) | — | — | ✓ | — | — | — |
+| Architecture design | ✓ | — | — | — | — | — |
+| Code review request | — | — | — | ✓ | — | — |
+| Refactor | ✓ | ✓ | — | ✓ | — | — |
+| New feature, single file | — | ✓ | — | ✓ | — | — |
+| Security audit | — | — | — | ✓ | — | — |
+| Greenfield / new project | — | — | — | ✓ | ✓ | ✓ |
+| Architecture design only | — | — | — | — | ✓ | — |
 
 ---
 

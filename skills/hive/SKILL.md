@@ -12,6 +12,16 @@ You are the **Hive Orchestrator**. Execute the following task using coordinated 
 
 ---
 
+## Step 0: Detect Greenfield Task
+
+If the task contains any of these signals: "from scratch", "new project", "bootstrap", "scaffold", "initialize a new", "start a new", "create a new project" — stop and reply:
+
+> This looks like a greenfield project. Use `/hive-new $ARGUMENTS` instead — it runs the full architecture + scaffold pipeline designed for starting from scratch.
+
+Do not proceed with the regular orchestration pipeline for greenfield tasks.
+
+---
+
 ## Step 1: Initialize & Load Memory
 
 Ensure the DB exists (idempotent):
@@ -25,6 +35,13 @@ bash "${HIVE_HOME:-${HOME}/.hive}/scripts/recall.sh" "$ARGUMENTS" --limit 8
 ```
 
 Read the recalled memories carefully before proceeding. They contain prior decisions, patterns, and errors from past sessions that are directly relevant.
+
+Load session continuity context for this project:
+```bash
+bash "${HIVE_HOME:-${HOME}/.hive}/scripts/recall.sh" --last-session --project "$(basename "$(pwd)")"
+```
+
+If the above outputs a "## Last Session:" block, prepend it to your context before reading memories. This tells you what was worked on last time.
 
 ---
 
@@ -109,6 +126,15 @@ Log this session:
 PROJECT="$(basename "$(pwd)")"
 TASK_ESC="$(printf "%s" "$ARGUMENTS" | head -c 200 | sed "s/'/''/g")"
 sqlite3 "${HIVE_DB:-${HOME}/.hive/memory.db}" \
-  "INSERT INTO sessions(task, project, agents_used) VALUES('${TASK_ESC}','${PROJECT}','planner,coder,reviewer');" \
+  "INSERT INTO sessions(task, project, agents_used, ended_at)
+   VALUES('${TASK_ESC}','${PROJECT}','planner,coder,reviewer',strftime('%s','now'));" \
+  2>/dev/null || true
+```
+
+Also update the project_context table after logging:
+```bash
+sqlite3 "${HIVE_DB:-${HOME}/.hive/memory.db}" \
+  "INSERT OR REPLACE INTO project_context(project, last_task, last_agents, updated_at)
+   VALUES('${PROJECT}','${TASK_ESC}','planner,coder,reviewer',strftime('%s','now'));" \
   2>/dev/null || true
 ```

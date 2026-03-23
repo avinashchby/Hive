@@ -23,6 +23,7 @@
 | `pattern` | Recurring code patterns worth replicating | "All API handlers return `(Response, StatusCode)`, never panic on user input" |
 | `error` | Failure modes that have been seen and resolved | "sqlite3 'database is locked' when two writers use WAL=OFF; fix: enable WAL mode" |
 | `preference` | User preferences about style, workflow, tooling | "Prefers table-driven tests; dislikes mocks except at system boundaries" |
+| `architecture` | System design decisions, tech stack choices, module boundaries, API contracts | "Chose hexagonal architecture with ports/adapters to isolate DB from domain logic" |
 
 ## Importance Scale
 
