@@ -28,25 +28,35 @@ Hive/
 ├── commands/
 │   ├── hive.md                      ← /hive <task>  (orchestrator)
 │   ├── hive-memory.md               ← /hive-memory [search|delete|list]
+│   ├── hive-compress.md             ← /hive-compress
 │   ├── hive-status.md               ← /hive-status
-│   └── hive-compress.md             ← /hive-compress
+│   └── hive-new.md                  ← NEW: greenfield bootstrapper
 ├── agents/
 │   ├── hive-planner.md
 │   ├── hive-coder.md
 │   ├── hive-debugger.md
-│   └── hive-reviewer.md
+│   ├── hive-reviewer.md
+│   ├── hive-architect.md             ← NEW: system design agent
+│   └── hive-scaffolder.md            ← NEW: project scaffolding agent
 ├── skills/hive/
 │   ├── SKILL.md
 │   └── references/
 │       ├── memory-schema.md
 │       ├── routing-guide.md
 │       └── output-format.md
+├── skills/hive-memory/
+├── skills/hive-status/
+├── skills/hive-compress/
+└── skills/hive-new/                  ← NEW: /hive-new greenfield command
+    └── SKILL.md
 ├── scripts/
 │   ├── init.sh
 │   ├── recall.sh
 │   ├── save.sh
 │   ├── compress.sh
 │   ├── status.sh
+│   ├── migrate.sh                    ← NEW: SQLite schema migration
+│   ├── seed.sh                       ← NEW: greenfield project memory seeding
 │   └── lib/
 │       ├── db.sh
 │       └── validate.sh
@@ -122,7 +132,7 @@ Tests must not make network calls or invoke `claude` CLI.
 1. Create `agents/hive-<name>.md` with the agent definition
 2. Update `skills/hive/references/routing-guide.md` with when to use it
 3. Update `commands/hive.md` orchestrator with the agent's parallel prompt
-4. Update `agents/` section of this CLAUDE.md
+4. Update `agents/` section of this CLAUDE.md (hive-architect and hive-scaffolder were added following this protocol)
 5. Add to `commands/hive-status.md` if it produces loggable output
 
 ## Key Invariants (Do Not Break)

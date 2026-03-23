@@ -97,6 +97,16 @@ main() {
 
     require_db
 
+    # Skip seeding if already done for this project
+    local existing
+    existing=$(sqlite3 "${DB_PATH}" \
+      "SELECT COUNT(*) FROM memories WHERE project='$(escape_sql "${PROJECT}")' AND type='architecture';" \
+      2>/dev/null || echo "0")
+    if [[ "${existing}" -gt 0 ]]; then
+        echo "Project ${PROJECT} already seeded (${existing} architecture memories found). Skipping."
+        return 0
+    fi
+
     local arch_content="Project ${PROJECT} uses ${STACK}."
     if [[ -n "${DESCRIPTION}" ]]; then
         arch_content="${arch_content} ${DESCRIPTION}"

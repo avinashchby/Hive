@@ -57,4 +57,32 @@ result=$(sqlite3 "${HIVE_DB}" "SELECT name FROM sqlite_master WHERE type='table'
 bash "${SCRIPTS_DIR}/migrate.sh" > /dev/null
 pass "migration is idempotent"
 
+# Test 11: migrate.sh correctly migrates an old-schema DB (no architecture type)
+OLD_DB=$(mktemp /tmp/hive_old_XXXXX.db)
+# Create DB with old 5-type CHECK constraint (no architecture)
+sqlite3 "${OLD_DB}" "
+PRAGMA journal_mode = WAL;
+CREATE TABLE memories (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    type TEXT NOT NULL CHECK(type IN ('fact','decision','pattern','error','preference')),
+    content TEXT NOT NULL,
+    project TEXT NOT NULL DEFAULT '',
+    tags TEXT NOT NULL DEFAULT '',
+    importance INTEGER NOT NULL DEFAULT 5 CHECK(importance BETWEEN 1 AND 10),
+    access_count INTEGER NOT NULL DEFAULT 0,
+    created_at INTEGER NOT NULL DEFAULT (strftime('%s','now')),
+    last_accessed INTEGER NOT NULL DEFAULT (strftime('%s','now'))
+);
+INSERT INTO memories(type,content) VALUES('fact','old fact');
+"
+# Run init.sh against old DB (which creates FTS table and calls migrate.sh internally)
+HIVE_DB="${OLD_DB}" bash "${SCRIPTS_DIR}/init.sh" > /dev/null
+# Verify architecture type now accepted
+output=$(HIVE_DB="${OLD_DB}" bash "${SCRIPTS_DIR}/save.sh" --type architecture --content "migrated test" 2>&1)
+[[ "${output}" =~ "Memory saved:" ]] && pass "migrate.sh upgrades old-schema DB" || fail "migration failed: ${output}"
+# Verify old data preserved
+count=$(sqlite3 "${OLD_DB}" "SELECT COUNT(*) FROM memories WHERE type='fact';")
+[[ "${count}" -eq 1 ]] && pass "old data preserved after migration" || fail "old data lost (count=${count})"
+rm -f "${OLD_DB}"
+
 echo "=== test_init.sh DONE ==="

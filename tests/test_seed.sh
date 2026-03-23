@@ -127,8 +127,12 @@ output=$(bash "${SCRIPTS_DIR}/recall.sh" --project "testapp" --last-session)
     && pass "--last-session works without a query string" \
     || fail "--last-session without query failed: ${output}"
 
-# Test 17: seed.sh is idempotent (run twice, no error)
+# Test 17: seed.sh is idempotent — row count must not increase on second run
+count_before=$(sqlite3 "${HIVE_DB}" "SELECT COUNT(*) FROM memories WHERE project='testapp';")
 bash "${SCRIPTS_DIR}/seed.sh" --project "testapp" --stack "Go + Postgres" > /dev/null
-pass "seed.sh is idempotent (run twice without crash)"
+count_after=$(sqlite3 "${HIVE_DB}" "SELECT COUNT(*) FROM memories WHERE project='testapp';")
+[[ "${count_after}" -eq "${count_before}" ]] \
+    && pass "seed.sh is idempotent (row count unchanged on second run)" \
+    || fail "seed.sh added rows on second run (before=${count_before}, after=${count_after})"
 
 echo "=== test_seed.sh DONE ==="

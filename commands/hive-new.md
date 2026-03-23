@@ -88,7 +88,7 @@ bash "${HIVE_HOME:-${HOME}/.hive}/scripts/seed.sh" \
   --description "$ARGUMENTS"
 ```
 
-Count the number of memories seeded (seed.sh output lines beginning with "Saved:") and record for the summary.
+Count the number of memories seeded from the seed.sh output line matching "Seeded N memories for project:" and record for the summary.
 
 ---
 
