@@ -127,4 +127,8 @@ output=$(bash "${SCRIPTS_DIR}/recall.sh" --project "testapp" --last-session)
     && pass "--last-session works without a query string" \
     || fail "--last-session without query failed: ${output}"
 
+# Test 17: seed.sh is idempotent (run twice, no error)
+bash "${SCRIPTS_DIR}/seed.sh" --project "testapp" --stack "Go + Postgres" > /dev/null
+pass "seed.sh is idempotent (run twice without crash)"
+
 echo "=== test_seed.sh DONE ==="

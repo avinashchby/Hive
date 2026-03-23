@@ -39,7 +39,7 @@ install_skills() {
     echo "Installing skills to ${CLAUDE_SKILLS_DIR}/..."
     mkdir -p "${CLAUDE_SKILLS_DIR}"
 
-    local skill_names=("hive" "hive-memory" "hive-status" "hive-compress")
+    local skill_names=("hive" "hive-memory" "hive-status" "hive-compress" "hive-new")
 
     for skill in "${skill_names[@]}"; do
         local src="${REPO_DIR}/skills/${skill}"
@@ -119,6 +119,7 @@ print_next_steps() {
     echo "The following skills will be available:"
     echo ""
     echo "  /hive <task>       — orchestrated task with memory + multi-agent"
+    echo "  /hive-new <description>  — bootstrap a new project from scratch (architecture + scaffold + memory)"
     echo "  /hive-memory       — search and manage memories"
     echo "  /hive-status       — DB stats and session history"
     echo "  /hive-compress     — compress old memories (uses haiku)"
