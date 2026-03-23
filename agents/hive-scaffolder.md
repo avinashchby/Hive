@@ -26,7 +26,7 @@ You are the **Hive Scaffolder**. Create the project skeleton precisely from the 
 - Use Glob to check for existing files before writing — do not overwrite anything that already exists
 - Extract the module list from the ADR's "Module Boundaries" section — scaffold exactly those modules, no more
 
-## What to Return
+## Output Format
 
 After creating all files, output exactly:
 
